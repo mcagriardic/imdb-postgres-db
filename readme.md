@@ -10,6 +10,9 @@ The schemas of our tables have been altered slightly from the original IMDb scro
 
 Let our quest for mastery of SQL and the mystical arts of efficient data manipulation commence!
 
+# How to run?
+Just `docker-compose up &`. Everything is handled automatically.
+
 # The IMDb Dataset: A Treasure Trove of Movie Data
 
 Fellow data enthusiasts, gather 'round! We've acquired a gem in the world of datasets - the renowned IMDb database. This valuable resource was sourced from https://developer.imdb.com/non-commercial-datasets/ and downloaded to our local environment in August 2024.
