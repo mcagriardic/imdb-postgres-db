@@ -201,3 +201,61 @@ WITH directors_and_movies AS (
 	ORDER BY movies_released DESC, breakout_year DESC
 	LIMIT 10
 ```
+
+8. Find the actors/actresses who have consistently improved their movie ratings over their career. Specifically, retrieve the top 5 actors/actresses who have at least 5 movies, where each subsequent movie has a higher rating than the previous one. Display the actor/actress name, the number of consecutively improving movies, and the ratings of their first and last movie in this sequence.
+
+```sql
+WITH RECURSIVE actor_actress_ratings AS (
+	SELECT
+		nb.nconst AS actor_actress_id,
+		ARRAY_AGG(tr.average_rating ORDER BY tb.start_year) AS ratings
+	FROM title_principals tp
+	JOIN name_basics nb
+		ON tp.nconst = nb.nconst
+	JOIN title_ratings tr
+		ON tp.tconst  = tr.tconst
+	JOIN title_basics tb
+		ON tp.tconst = tb.tconst 
+	WHERE tp.category IN ('actor', 'actress')
+		AND tb.title_type = 'movie'
+	GROUP BY nb.nconst	
+), increasing_sequence AS (
+	SELECT
+		actor_actress_id,
+		ratings[1] AS current_rating,
+		1 AS pos,
+		1 AS sequence_length,
+		1 AS max_sequence_length,
+		ratings
+	FROM actor_actress_ratings
+	
+	UNION ALL
+	
+	SELECT
+		ise.actor_actress_id,
+		ise.ratings[pos + 1],
+		ise.pos + 1,
+		CASE 
+			WHEN ise.ratings[ise.pos + 1] > ise.current_rating
+			THEN ise.sequence_length + 1
+			ELSE 1
+		END,
+	    GREATEST(
+	      ise.max_sequence_length,
+	      CASE
+	        WHEN ise.ratings[ise.pos + 1] > ise.current_rating THEN ise.sequence_length + 1
+	        ELSE 1
+	      END
+	    ),
+		ise.ratings
+	FROM increasing_sequence ise
+	WHERE ise.pos < array_length(ise.ratings, 1)
+) 
+SELECT DISTINCT ON (actor_actress_id)
+  actor_actress_id,
+  max_sequence_length
+FROM increasing_sequence
+WHERE max_sequence_length >= 5
+ORDER BY actor_actress_id, max_sequence_length DESC;
+
+```
