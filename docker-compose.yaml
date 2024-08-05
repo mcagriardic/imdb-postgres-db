@@ -4,7 +4,6 @@ services:
   db:
     build: .
     container_name: postgres-server
-    restart: always
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: username
