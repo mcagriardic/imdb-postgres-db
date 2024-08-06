@@ -20,9 +20,6 @@ COPY custom-entrypoint.sh /usr/local/bin/
 RUN chmod +x /docker-entrypoint-initdb.d/import_data.sh && \
     chmod +x /usr/local/bin/custom-entrypoint.sh
 
-# Set PostgreSQL configuration
-RUN echo "max_wal_size = 4GB" >> /usr/share/postgresql/postgresql.conf.sample
-RUN echo "checkpoint_completion_target = 0.9" >> /usr/share/postgresql/postgresql.conf.sample
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/custom-entrypoint.sh"]
