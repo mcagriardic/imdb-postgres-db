@@ -389,3 +389,168 @@ WHERE current_max_sequence_length >= 5
 ORDER BY actor_actress_id, max_sequence_length DESC
 ```
 
+10. Create a report of actors/actresses who have starred in both movies and TV series. For each person:
+
+* Show their full name
+* The number of movies they've acted in
+* The number of TV series they've acted in
+* Their most common genre in movies (if tied, show all tied genres separated by '/')
+* The title of their highest-rated movie, along with its rating
+* A shortened version of their name (first initial + last name, e.g., "T. Hanks" for Tom Hanks)
+
+Only include actors/actresses who have been in at least 5 movies and 3 TV series. Order the results by the total number of titles (movies + TV series) in descending order. Limit the output to the top 10 actors/actresses.
+
+```sql
+WITH base AS (
+    SELECT
+        tp.nconst,
+        tb.title_type,
+        tb.primary_title,
+        tr.average_rating,
+        tb.genres
+    FROM title_basics tb
+    JOIN title_principals tp
+    	ON tb.tconst = tp.tconst
+    JOIN title_ratings tr
+    	ON tb.tconst = tr.tconst
+    WHERE title_type IN ('movie', 'tvSeries')
+    	AND tp.category IN ('actor', 'actress')
+), 
+movie_data AS (
+    SELECT
+        nconst,
+        COUNT(*) AS movie_count,
+        MAX(average_rating) AS highest_movie_rating,
+        (ARRAY_AGG(primary_title ORDER BY average_rating DESC))[1] AS highest_rated_movie
+    FROM base
+    WHERE title_type = 'movie'
+    GROUP BY nconst
+    HAVING COUNT(*) >= 5
+),
+tvseries_data AS (
+    SELECT
+        nconst,
+        COUNT(*) AS tvseries_count
+    FROM base b
+    WHERE title_type = 'tvSeries'
+    GROUP BY nconst
+    HAVING COUNT(*) >= 3
+),
+movie_genres AS (
+    SELECT
+        nconst,
+        UNNEST(genres) AS genre,
+        COUNT(*) AS genre_count
+    FROM base
+    WHERE title_type = 'movie'
+    GROUP BY nconst, genre
+),
+top_movie_genres AS (
+    SELECT
+        nconst,
+        STRING_AGG(genre, '/' ORDER BY genre_count DESC, genre) AS top_genres,
+        ROW_NUMBER() OVER (PARTITION BY nconst ORDER BY genre_count DESC) AS rn
+    FROM movie_genres
+    GROUP BY nconst, genre_count
+), 
+actor_summary AS (
+    SELECT
+        nb.primary_name,
+        nb.nconst,
+        md.movie_count,
+        md.highest_movie_rating,
+        md.highest_rated_movie,
+        tv.tvseries_count,
+        tmg.top_genres AS most_common_movie_genre,
+        CONCAT(
+        	LEFT(nb.primary_name, 1),
+			'. ',
+			SUBSTRING(
+				nb.primary_name 
+				FROM POSITION(' ' IN nb.primary_name)
+				+ 1
+			)
+		) AS shortened_name
+    FROM name_basics nb
+    JOIN movie_data md ON nb.nconst = md.nconst
+    JOIN tvseries_data tv ON nb.nconst = tv.nconst
+    LEFT JOIN top_movie_genres tmg ON nb.nconst = tmg.nconst AND tmg.rn = 1
+)
+SELECT 	
+	* 
+FROM actor_summary
+ORDER BY (movie_count + tvseries_count) DESC
+LIMIT 10;
+```
+
+11. Create a report that shows the collaborative network of actors/actresses. Specifically, for the top 20 actors/actresses (based on the number of movie appearances), list their top 5 most frequent co-stars in movies. The report should include:
+
+* The main actor/actress's name
+* Their total number of movie appearances
+* Their co-star's name
+* The number of movies they've appeared in together
+* The title of the highest-rated movie they've both been in
+* The average rating of all movies they've appeared in together
+
+Only consider movies with at least 1000 votes. Also, include a 'collaboration score' calculated as: (number of movies together * average rating of movies together) / 10.
+Order the results first by the main actor/actress's number of appearances (descending), then by the number of movies with the co-star (descending).
+
+```sql
+WITH base AS (
+	SELECT
+		tp.tconst,
+		tp.nconst,
+		tr.average_rating
+	FROM title_basics tb
+	JOIN title_principals tp
+		ON tb.tconst = tp.tconst
+	JOIN title_ratings tr
+		ON tb.tconst = tr.tconst
+	WHERE title_type = 'movie'
+		AND category IN ('actor', 'actress')
+		AND num_votes > 1000
+),
+actor_movie_appearances AS (
+	SELECT 
+		nconst,
+		COUNT(DISTINCT tconst) AS total_movie_appearance
+	FROM base
+	GROUP BY nconst
+	ORDER BY COUNT(DISTINCT tconst) DESC
+	LIMIT 20
+),
+collaborations  AS (
+	SELECT
+		b1.nconst AS actor_actress_id,
+		ama.total_movie_appearance,
+		b2.nconst AS collaborated_with_id,				
+		COUNT(DISTINCT b1.tconst) AS count_movie_appeared_together,
+		(ARRAY_AGG(b1.tconst ORDER BY b1.average_rating DESC))[1] AS highest_rated_movie_title_id,
+		AVG(b1.average_rating) AS actor_actress_average_movie_rating,
+		ROW_NUMBER() OVER (
+			PARTITION BY b1.nconst 
+			ORDER BY COUNT(DISTINCT b1.tconst) DESC
+		) AS collaboration_rank
+	FROM base b1
+	JOIN base b2 
+		ON b1.tconst = b2.tconst
+	JOIN actor_movie_appearances ama 
+		ON b1.nconst = ama.nconst
+	WHERE b1.nconst <> b2.nconst
+	GROUP BY b1.nconst, ama.total_movie_appearance, b2.nconst
+)
+SELECT
+    nb1.primary_name AS actor_actress,
+    c.total_movie_appearance,
+    nb2.primary_name AS collaborated_with,
+    c.count_movie_appeared_together,
+    tb.primary_title AS highest_rated_movie_title,
+    c.actor_actress_average_movie_rating,
+    (c.count_movie_appeared_together * c.actor_actress_average_movie_rating) / 10 AS collaboration_score
+FROM collaborations c
+JOIN name_basics nb1 ON c.actor_actress_id = nb1.nconst
+JOIN name_basics nb2 ON c.collaborated_with_id = nb2.nconst
+JOIN title_basics tb ON tb.tconst = c.highest_rated_movie_title_id
+WHERE c.collaboration_rank <= 5
+ORDER BY c.total_movie_appearance DESC, c.count_movie_appeared_together DESC;
+```
