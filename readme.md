@@ -4,7 +4,7 @@ Hear ye, fellow data seekers! Long have I scoured the digital lands for a most c
 
 In my journeys through tomes both physical and digital, I discovered that while the fundamental syntax of SQL could be gleaned from sacred texts, true mastery of efficient query-craft remained as elusive as capturing stardust. The hallowed manuscripts I encountered proved as insubstantial as morning mist when faced with the challenge of advanced practice beyond mere joins.
 
-To my brethren in the Halls of Data and the Forges of Software: indeed, we all wield the arts of SQL in our daily labors. Yet, in my experience, the tables we encounter are often normalized by the high wizards of upstream teams, their intricate design hidden from our mortal eyes. This serves us little in honing our craft or in facing the trials of the dreaded Interview Dragons.
+To my brethren in the Halls of Data and the Forges of Software: indeed, we all wield the arts of SQL in our daily labors. Yet, in my experience, the tables we encounter are often denormalized by the high wizards of upstream teams, their intricate design hidden from our mortal eyes. This serves us little in honing our craft or in facing the trials of the dreaded Interview Dragons.
 
 The schemas of our tables have been altered slightly from the original IMDb scrolls, as if by digital sorcery. Some columns that once held mere text have been transmuted into arrays, like quivers holding multiple arrows of information. An example of an enhancement applied to the 'jobs' (renamed from 'job') and 'characters' inscriptions in the scroll of title_principals.
 
